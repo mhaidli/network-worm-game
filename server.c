@@ -21,14 +21,7 @@ int main(int argc , char *argv[])
   int max_sd;
   int sd_last;
   int has_stdin = 0;
-  int my_array[50][25];
 
-  int j, k;
-  for(j=0; j<50; j++){
-    for(k=0; k<25;k++){
-      my_array[j][k] = j*50+k;
-    }
-  }
   struct sockaddr_in address;
       
   char buffer[1025];  //data buffer of 1K
@@ -201,7 +194,7 @@ int main(int argc , char *argv[])
               for(i=0; i<max_clients; i++){
                 sd = client_socket[i];
                 send(sd , buffer , strlen(buffer) , 0 );
-                write(sd, my_array, sizeof(my_array));
+                //  write(sd, my_array, sizeof(my_array));
               }
             } 
         }
