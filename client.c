@@ -15,7 +15,7 @@
 #include <netinet/in.h>
 #include <sys/time.h> 
 //Select and pull to handle simulataneous messaging
-
+#define ARRAY_LEN 100*100
 
 int main(int argc , char *argv[])
 {
@@ -27,6 +27,7 @@ int main(int argc , char *argv[])
     int max_sd;
     int server_sd, activity, valread;
     int stdin_sd = fileno(stdin);
+    int m;
 
     //Variables For select
     fd_set readfds;
@@ -85,11 +86,11 @@ int main(int argc , char *argv[])
       }
 
       if (FD_ISSET(socket_desc, &readfds)){
-        valread = read( socket_desc , message, 1024);
-        message[valread] = '\0';   
-        printf("%s", message);
+        //  valread = read( socket_desc , message, 1024);
+        // message[valread] = '\0';   
+        // printf("%s", message);
         //printf("Message received!\n");    
-        printf("%s", message);
+        //  printf("%s", message);
           /* int j, k; */
           /* for(j=0; j<50; j++){ */
           /*   for(k=0; k<25;k++){ */
@@ -97,6 +98,21 @@ int main(int argc , char *argv[])
           /*   } */
           /*   printf("\n"); */
           /* } */
+        int targetArray[ARRAY_LEN];
+
+        char *buffer = (char*)targetArray;
+        size_t remaining = sizeof(int) * ARRAY_LEN;
+        while (remaining) {
+          ssize_t recvd = read(socket_desc, buffer, remaining);
+          // TODO: check for read errors etc here...
+          remaining -= recvd;
+          buffer += recvd;
+        }
+        for (m=0;m<=ARRAY_LEN;m++){
+          if (m%100 == 0)
+            printf("\n");
+          printf(" %d", targetArray[m]);
+        }
       }
 
     }

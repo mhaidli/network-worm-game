@@ -12,7 +12,7 @@
 #define TRUE   1
 #define FALSE  0
 #define PORT 8888
- 
+#define ARRAY_LEN 100*100 
 int main(int argc , char *argv[])
 {
   //Variables
@@ -21,6 +21,7 @@ int main(int argc , char *argv[])
   int max_sd;
   int sd_last;
   int has_stdin = 0;
+  int l;
 
   struct sockaddr_in address;
       
@@ -124,13 +125,16 @@ int main(int argc , char *argv[])
           printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
         
           //send new connection greeting message
-          if( send(new_socket, message, strlen(message), 0) != strlen(message) ) 
-            {
-              perror("send");
-            }
+          /* if( send(new_socket, message, strlen(message), 0) != strlen(message) )  */
+          /*   { */
+          /*     perror("send"); */
+          /*   } */
               
           puts("Welcome message sent successfully");
-              
+          int sourceArray[ARRAY_LEN];
+          for (l=0;l<ARRAY_LEN;l++)
+            sourceArray[l] = l;
+          int result = send(new_socket, sourceArray, sizeof(int) * ARRAY_LEN, 0);
           //add new socket to array of sockets
           for (i = 0; i < max_clients; i++) 
             {
