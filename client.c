@@ -14,9 +14,14 @@
 #include <sys/time.h>
 #include <time.h>
 
-#define ARRAY_LEN 50*25
+#define BOARD_WIDTH 50
+#define BOARD_HEIGHT 25
+#define ARRAY_LEN BOARD_WIDTH*BOARD_HEIGHT
 
 char read_input(int socket);
+void init_display();
+int screen_col(int col);
+int screen_row(int row);
 
 int main(int argc , char *argv[])
 {
@@ -203,6 +208,68 @@ char read_input(int socket) {
   else
     return -50;
  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+//Functions from worm.c to represent screen
+/**
+ * Convert a board row number to a screen position
+ * \param   row   The board row number to convert
+ * \return        A corresponding row number for the ncurses screen
+ */
+int screen_row(int row) {
+  return 2 + row;
+}
+
+/**
+ * Convert a board column number to a screen position
+ * \param   col   The board column number to convert
+ * \return        A corresponding column number for the ncurses screen
+ */
+int screen_col(int col) {
+  return 2 + col;
+}
+
+// Initialize the board display by printing the title and edges
+void init_display() {
+  // Print Title Line
+  move(screen_row(-2), screen_col(BOARD_WIDTH/2 - 5));
+  addch(ACS_DIAMOND);
+  addch(ACS_DIAMOND);
+  printw(" Worm! ");
+  addch(ACS_DIAMOND);
+  addch(ACS_DIAMOND);
+  
+  // Print corners
+  mvaddch(screen_row(-1), screen_col(-1), ACS_ULCORNER);
+  mvaddch(screen_row(-1), screen_col(BOARD_WIDTH), ACS_URCORNER);
+  mvaddch(screen_row(BOARD_HEIGHT), screen_col(-1), ACS_LLCORNER);
+  mvaddch(screen_row(BOARD_HEIGHT), screen_col(BOARD_WIDTH), ACS_LRCORNER);
+  
+  // Print top and bottom edges
+  for(int col=0; col<BOARD_WIDTH; col++) {
+    mvaddch(screen_row(-1), screen_col(col), ACS_HLINE);
+    mvaddch(screen_row(BOARD_HEIGHT), screen_col(col), ACS_HLINE);
+  }
+  
+  // Print left and right edges
+  for(int row=0; row<BOARD_HEIGHT; row++) {
+    mvaddch(screen_row(row), screen_col(-1), ACS_VLINE);
+    mvaddch(screen_row(row), screen_col(BOARD_WIDTH), ACS_VLINE);
+  }
+  
+  refresh();
 }
 
 
