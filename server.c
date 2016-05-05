@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <string.h>   //strlen
 #include <stdlib.h>
@@ -12,17 +13,23 @@
 #define TRUE   1
 #define FALSE  0
 #define PORT 8888
-#define ARRAY_LEN 100*100 
+#define ARRAY_LEN 50*25
+ 
 int main(int argc , char *argv[])
 {
   //Variables
   int opt = TRUE;
-  int master_socket , addrlen , new_socket , client_socket[5] , max_clients = 5 , activity, i , valread , sd;
-  int max_sd;
+  int master_socket , addrlen , new_socket;
+  int client_socket[5] , max_clients = 5 , activity, i , valread , sd;
+  int max_sd , l;
   int sd_last;
   int has_stdin = 0;
-  int l;
+    int client_sock; 
 
+  int sourceArray[ARRAY_LEN];
+  for (l=0;l<ARRAY_LEN;l++)
+            sourceArray[l] = l;
+  
   struct sockaddr_in address;
       
   char buffer[1025];  //data buffer of 1K
@@ -31,7 +38,7 @@ int main(int argc , char *argv[])
   fd_set readfds;
       
   //a message
-  char *message = "ECHO Daemon v1.0 \r\n";
+  char *message = "WELCOME TO SERVER";
   
   //initialise all client_socket[] to 0 so not checked
   for (i = 0; i < max_clients; i++) 
@@ -129,12 +136,9 @@ int main(int argc , char *argv[])
           /*   { */
           /*     perror("send"); */
           /*   } */
-              
+          client_sock = new_socket;
           puts("Welcome message sent successfully");
-          int sourceArray[ARRAY_LEN];
-          for (l=0;l<ARRAY_LEN;l++)
-            sourceArray[l] = l;
-          int result = send(new_socket, sourceArray, sizeof(int) * ARRAY_LEN, 0);
+              
           //add new socket to array of sockets
           for (i = 0; i < max_clients; i++) 
             {
@@ -182,30 +186,18 @@ int main(int argc , char *argv[])
                   buffer[valread] = '\0';
                   
                   printf("%s", buffer);
+
+                  //  int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
                   //   send(sd , buffer , strlen(buffer) , 0 );
                 }
             }
 
           //Else, check to see if stdin was activated
-          else if (FD_ISSET( sd , &readfds) && sd == fileno(stdin))
-            
-            {
-
-              //Read incoming message
-              fgets(buffer, 1024, stdin);
-
-              //Send message to all clients
-              for(i=0; i<max_clients; i++){
-                sd = client_socket[i];
-                send(sd , buffer , strlen(buffer) , 0 );
-                //  write(sd, my_array, sizeof(my_array));
-              }
-            } 
+        
         }
-    }
+      int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
+    }//while
+    
       
   return 0;
 } 
-
-
-
