@@ -22,6 +22,7 @@ char read_input(int socket);
 void init_display();
 int screen_col(int col);
 int screen_row(int row);
+void draw_board(int *board);
 
 int main(int argc , char *argv[])
 {
@@ -67,7 +68,8 @@ int main(int argc , char *argv[])
     WINDOW* mainwin = initscr();
     noecho();               // Don't print keys when pressed
     keypad(mainwin, true);  // Support arrow keys
-    timeout(0); 
+    timeout(0);
+    init_display();
     //Send some data
     //message = "Hello!\n";
 
@@ -115,7 +117,7 @@ int main(int argc , char *argv[])
         keystroke_ts[2] = '\0';
         send(socket_desc, keystroke_ts, strlen(keystroke_ts) , 0);
           
-        printf("String to be sent: %s\n", keystroke_ts);
+        /* printf("String to be sent: %s\n", keystroke_ts); */
           
       }
 
@@ -139,7 +141,7 @@ int main(int argc , char *argv[])
           /* } */
 
         //For arrays
-        /* int targetArray[ARRAY_LEN]; */
+         int targetArray[ARRAY_LEN]; 
 
         char *buffer = (char*)targetArray;
         size_t remaining = sizeof(int) * ARRAY_LEN;
@@ -149,14 +151,15 @@ int main(int argc , char *argv[])
           remaining -= recvd;
           buffer += recvd;
         }
-        for (m=0;m<=ARRAY_LEN;m++){
-          if (m%10 == 0)
-            printf("\n");
-          printf(" %d", targetArray[m]);
-        }
-      }
+        draw_board(targetArray);
+      /*   for (m=0;m<=ARRAY_LEN;m++){ */
+      /*     if (m%10 == 0) */
+      /*       printf("\n"); */
+      /*     printf(" %d", targetArray[m]); */
+      /*   } */
+      /* } */
       
-      //}
+      }
       
     }
     
@@ -258,13 +261,15 @@ void init_display() {
   mvaddch(screen_row(BOARD_HEIGHT), screen_col(BOARD_WIDTH), ACS_LRCORNER);
   
   // Print top and bottom edges
-  for(int col=0; col<BOARD_WIDTH; col++) {
+  int row, col;
+  for(col=0; col<BOARD_WIDTH; col++) {
     mvaddch(screen_row(-1), screen_col(col), ACS_HLINE);
     mvaddch(screen_row(BOARD_HEIGHT), screen_col(col), ACS_HLINE);
   }
   
   // Print left and right edges
-  for(int row=0; row<BOARD_HEIGHT; row++) {
+  
+  for(row=0; row<BOARD_HEIGHT; row++) {
     mvaddch(screen_row(row), screen_col(-1), ACS_VLINE);
     mvaddch(screen_row(row), screen_col(BOARD_WIDTH), ACS_VLINE);
   }
@@ -273,3 +278,24 @@ void init_display() {
 }
 
 
+void draw_board(int *board) {
+  int r, c;
+  // Loop over cells of the game board
+  for( r=0; r<BOARD_HEIGHT; r++) {
+    for( c=0; c<BOARD_WIDTH; c++) {
+      if(board[r*BOARD_WIDTH+c] == 0) {  // Draw blank spaces
+        mvaddch(screen_row(r), screen_col(c), ' ');
+      } else if(board[r*BOARD_WIDTH+c] > 0) {  // Draw worm
+        mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD);
+      } else {  // Draw apple spinner thing
+        char spinner_chars[] = {'|', '/', '-', '\\'};
+        mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r*BOARD_WIDTH+c] % 4)]);
+      }
+    }
+  }
+  
+  // Draw the score
+  //mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length-INIT_WORM_LENGTH);
+  
+  refresh();
+}

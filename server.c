@@ -20,7 +20,7 @@
 
 
 //Socket definitions
-#define TRUE   1
+#define TRUE  1
 #define FALSE  0
 #define PORT 8888
 
@@ -56,26 +56,31 @@ int apple_age = 120;
 //Function signatures
 int scheduler_init();
 void read_input(char key);
+void get_keystrokes();
 
 //These technically do not exist here
+void send_board();
 void init_display();
 int screen_col(int col);
 int screen_row(int row);
 
 
+//Global variables for get_keystroes function
+fd_set readfds;
+int client_socket[5];
+int max_clients = 5;
 //Main
 int main(int argc , char *argv[])
 {
   //Variables
   int opt = TRUE;
   int master_socket , addrlen , new_socket;
-  int client_socket[5] , max_clients = 5 , activity, i , valread , sd;
+  int activity, i , valread , sd;
   int max_sd , l;
   int sd_last;
   int has_stdin = 0;
   int client_sock;
-
-  scheduler_init();
+  int connections = 0;
 
   int sourceArray[ARRAY_LEN];
   for (l=0;l<ARRAY_LEN;l++)
@@ -86,7 +91,7 @@ int main(int argc , char *argv[])
   char buffer[1025];  //data buffer of 1K
       
   //set of socket descriptors
-  fd_set readfds;
+  //fd_set readfds;
       
   //a message
   char *message = "WELCOME TO SERVER";
@@ -135,8 +140,6 @@ int main(int argc , char *argv[])
   addrlen = sizeof(address);
   puts("Waiting for connections ...");
 
-  // socket_check(fd_set* readfds_addr, int master_socket, int* client_socket, struct sockaddr* address, socklen_t* addrlen )
-
   //   fd_set readfds = *readfds_addr;
   while(TRUE) 
     {
@@ -184,6 +187,8 @@ int main(int argc , char *argv[])
           
           //inform user of socket number - used in send and receive commands
           printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+          connections++;
+          //RUN SCHEDULER FUNCTION
         
           //send new connection greeting message
           /* if( send(new_socket, message, strlen(message), 0) != strlen(message) )  */
@@ -205,51 +210,15 @@ int main(int argc , char *argv[])
                   break;
                 }
             }
+           if (connections == 1)
+             scheduler_init();
+             //SCHEDULER
         }
-          
-      //else its some IO operation on some other socket :)
-      for (i = 0; i < max_clients + 1; i++) 
-        {
+      
 
-          if (i == max_clients)
-            sd = fileno(stdin);
-          else
-            sd = client_socket[i];
-
-          //If curret client socket was active, deal with situ   
-          if (FD_ISSET( sd , &readfds) &&  sd != fileno(stdin) )
-            {
-              //Check if it was for closing , and also read the incoming message
-              if ((valread = read( sd , buffer, 1024)) == 0)
-                {
-                  //Somebody disconnected , get his details and print
-                  getpeername(sd , (struct sockaddr*)&address , (socklen_t*)&addrlen);
-                  printf("Host disconnected , ip %s , port %d \n" , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
-                      
-                  //Close the socket and mark as 0 in list for reuse
-                  close( sd );
-                  client_socket[i] = 0;
-                }
-
-              
-              //Echo back the message that came in
-              else
-                {
-                  //set the string terminating NULL byte on the end of the data read
-                  read_input(buffer[0]);
-                  buffer[valread] = '\0';
-                  
-                  printf("%s", buffer);
-
-                  //  int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
-                  //   send(sd , buffer , strlen(buffer) , 0 );
-                }
-            }
-
-          //Else, check to see if stdin was activated
-        
-        }
-      int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
+      //Send array to client
+      
+      //int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
     }//while
     
       
@@ -349,6 +318,7 @@ void draw_board() {
 // Check for keyboard input and respond accordingly
 void read_input(char key) {
   // int key;// = getch();
+  printf("Keystroke: %c\n", key);
   if(key == 'w' && worm_dir != DIR_SOUTH) {
     worm_dir = DIR_NORTH;
   } else if(key == 'd' && worm_dir != DIR_WEST) {
@@ -494,6 +464,12 @@ int scheduler_init() {
   
   // Create a job to generate new apples every 2 seconds
   add_job(generate_apple, 2000);
+
+  //Create job to check for keystrokes ever 150ms
+  add_job(get_keystrokes, 150);
+
+  //sending array
+  add_job(send_board, 33);
   
   // Generate a few apples immediately
   for(int i=0; i<5; i++) {
@@ -508,4 +484,107 @@ int scheduler_init() {
   endwin();
 
   return 0;
+}
+
+int counter = 0;
+
+// Function to check for keystrokes from client
+//CHECKING FOR STUFF
+void get_keystrokes(/*int* maxclients, fd_set* readfds*/){
+  int i;
+  char buffer[1025];
+  int sd;
+  int max_clients = 1;
+  int valread;
+  int max_sd = -1;
+
+  struct timeval mytime;
+    
+  mytime.tv_sec=0;         /* seconds */
+  mytime.tv_usec=0;        /* microseconds */
+           
+  
+  FD_ZERO(&readfds);
+
+  counter++;
+
+  
+  
+   for ( i = 0 ; i < max_clients ; i++) 
+        {
+          //socket descriptor
+          sd = client_socket[i];
+             
+          //if valid socket descriptor then add to read list
+          if(sd > 0)
+            FD_SET( sd , &readfds);
+             
+          //highest file descriptor number, need it for the select function
+          if(sd > max_sd)
+            max_sd = sd;
+        }
+
+         //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
+
+  
+     int activity = select( max_sd + 1 , &readfds , NULL , NULL , &mytime);
+   
+  
+      if ((activity < 0) && (errno!=EINTR)) 
+        {
+          printf("select error");
+        }
+   
+  //else its some IO operation on some other socket :)
+  for (i = 0; i < max_clients; i++) 
+    {
+
+      if (i == max_clients)
+        sd = fileno(stdin);
+      else
+        sd = client_socket[i];
+
+      //If curret client socket was active, deal with situ   
+      if (FD_ISSET( sd , &readfds) &&  sd != fileno(stdin) )
+        {
+          //Check if it was for closing , and also read the incoming message
+          if ((valread = read( sd , buffer, 1024)) == 0)
+            {
+              /* //Somebody disconnected , get his details and print */
+              /* getpeername(sd , (struct sockaddr*)&address , (socklen_t*)&addrlen); */
+              /* printf("Host disconnected , ip %s , port %d \n" , inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); */
+                      
+              /* //Close the socket and mark as 0 in list for reuse */
+              /* close( sd ); */
+              /* client_socket[i] = 0; */
+            }
+
+              
+          //Echo back the message that came in
+          else
+            {
+              //set the string terminating NULL byte on the end of the data read
+              read_input(buffer[0]);
+              //buffer[valread] = '\0';
+              //printf("%s", buffer);
+            
+              
+
+              //  int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
+              //   send(sd , buffer , strlen(buffer) , 0 );
+            }
+        }
+
+      //Else, check to see if stdin was activated
+       
+    }
+    
+}
+
+
+void send_board()
+{
+  for(int i=0;i<max_clients;i++){
+  int result = send(client_socket[i], board, sizeof(int) * ARRAY_LEN, 0);
+  }
 }
