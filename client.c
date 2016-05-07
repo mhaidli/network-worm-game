@@ -1,4 +1,3 @@
-// working incurses + chatbox
 //Select and pull to handle simulataneous messaging
 #include <curses.h>
 #include <stdint.h>
@@ -17,173 +16,156 @@
 #define BOARD_WIDTH 50
 #define BOARD_HEIGHT 25
 #define ARRAY_LEN BOARD_WIDTH*BOARD_HEIGHT
+#define NUMBER_OF_PLAYERS 2
 
+
+//Function  signatures
+
+//Reads key pressed and returns it as char
 char read_input(int socket);
+
+//Initializes screen for Worm! game
 void init_display();
-int screen_col(int col);
-int screen_row(int row);
+
+//Convert a board row number to a screen position
+int screen_row(int col);
+
+//Convert a board column number to a screen position
+int screen_col(int row);
+
+//Draws the board on the screen based on the array that was passed in
 void draw_board(int *board);
 
+
+//main
 int main(int argc , char *argv[])
 {
-    int socket_desc;
-    struct sockaddr_in server;
-    char *message_1 , server_reply[2000];
-    char message[1024];
-    int client_array[50][25];
-    int max_sd;
-    int server_sd, activity, valread;
-    int stdin_sd = fileno(stdin);
-    int m;
+  //Variables
+  int socket_desc;
+  struct sockaddr_in server;
+  char *message_1 , server_reply[2000];
+  char message[1024];
+  int client_array[50][25];
+  int max_sd;
+  int server_sd, activity, valread;
+  int stdin_sd = fileno(stdin);
+  int m;
     
-    //Variables For select
-    fd_set readfds;
-    
-    
-    //Create socket
-    socket_desc = socket(AF_INET , SOCK_STREAM , 0);
-    if (socket_desc == -1)
-    {
-        printf("Could not create socket");
-    }
-
-    char server_ip[1024];
-    printf("Please enter IP address to connect: ");
-    scanf("%s", server_ip);
-    
-    server.sin_addr.s_addr = inet_addr(server_ip);
-    server.sin_family = AF_INET;
-    server.sin_port = htons( 8888 );
- 
-    //Connect to remote server
-    if ((server_sd = connect(socket_desc , (struct sockaddr *)&server , sizeof(server))) < 0)
-    {
-        puts("connect error");
-        return 1;
-    }
-    
-    puts("Connected\n");
-
-        //Keyboard Shenanigans
-    WINDOW* mainwin = initscr();
-    noecho();               // Don't print keys when pressed
-    keypad(mainwin, true);  // Support arrow keys
-    timeout(0);
-    init_display();
-    //Send some data
-    //message = "Hello!\n";
-
-    int targetArray[ARRAY_LEN];
-    char *buffer = (char*)targetArray;
-    size_t remaining = sizeof(int) * ARRAY_LEN;
+  //Variables For select
+  fd_set readfds;
         
-    while(1){
+  //Create socket
+  socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+  if (socket_desc == -1)
+    {
+      printf("Could not create socket");
+    }
+
+  //Read ip and connect to it
+  char server_ip[1024];
+  printf("Please enter IP address to connect: ");
+  scanf("%s", server_ip);
+    
+  server.sin_addr.s_addr = inet_addr(server_ip);
+  server.sin_family = AF_INET;
+  server.sin_port = htons( 8888 );
+ 
+  //Connect to remote server
+  if ((server_sd = connect(socket_desc , (struct sockaddr *)&server , sizeof(server))) < 0)
+    {
+      puts("connect error");
+      return 1;
+    }
+    
+  puts("Connected\n");
+
+  //Initialize screen and ncurses
+  WINDOW* mainwin = initscr();
+  noecho();               // Don't print keys when pressed
+  keypad(mainwin, true);  // Support arrow keys
+  timeout(0);
+  init_display();
+
+        
+  while(1){
   
-      FD_ZERO(&readfds);
+    FD_ZERO(&readfds);
       
-      //Add stdin
-      FD_SET(stdin_sd, &readfds);
-      max_sd = stdin_sd;
+    //Add stdin
+    FD_SET(stdin_sd, &readfds);
+    max_sd = stdin_sd;
 
-      FD_SET(socket_desc, &readfds);
-      if(socket_desc > max_sd)
-        max_sd = socket_desc;
+    FD_SET(socket_desc, &readfds);
+    if(socket_desc > max_sd)
+      max_sd = socket_desc;
 
-      //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
-      activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
+    //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
+    activity = select( max_sd + 1 , &readfds , NULL , NULL , NULL);
 
-      //error check for select
-      if ((activity < 0) && (errno!=EINTR)) 
-        {
-          printf("select error");
-        }
-
-      /* if (FD_ISSET(stdin_sd, &readfds)){ */
-      /*    fgets(message, 1024, stdin); */
-      /*   send(socket_desc , message , strlen(message) , 0); */
-   
-      /* } */
-
-
-      
-
-      char keystroke = read_input(socket_desc);
-      //if (keystroke == 'q' || 'w' || 'a' || 's' || 'd')
-      //  {
-      if(keystroke != -50){
-        char keystroke_ts[3];
-        keystroke_ts[0] = keystroke;            
-        keystroke_ts[1] = '\n';
-        keystroke_ts[2] = '\0';
-        send(socket_desc, keystroke_ts, strlen(keystroke_ts) , 0);
-          
-        /* printf("String to be sent: %s\n", keystroke_ts); */
-          
+    //error check for select
+    if ((activity < 0) && (errno!=EINTR)) 
+      {
+        printf("select error");
       }
 
-
+    //Check for keystrokes and send to server
+    char keystroke = read_input(socket_desc);
     
+    if(keystroke != -50){
+      char keystroke_ts[3];
+      keystroke_ts[0] = keystroke;            
+      keystroke_ts[1] = '\n';
+      keystroke_ts[2] = '\0';
+      send(socket_desc, keystroke_ts, strlen(keystroke_ts) , 0);
+    }
 
-      if (FD_ISSET(socket_desc, &readfds)){
 
-        //Prints out a message
-        /* valread = read( socket_desc , message, 1024); */
-        /* message[valread] = '\0'; */
-        /* printf("%s", message); */
-        /* //printf("Message received!\n"); */
-        /* printf("%s", message); */
-          /* int j, k;
-          /* for(j=0; j<50; j++){ */
-          /*   for(k=0; k<25;k++){ */
-          /*     printf("%d ", client_array[j][k]); */
-          /*   } */
-          /*   printf("\n"); */
-          /* } */
+    //Check for incoming array information, and draw board
+    if (FD_ISSET(socket_desc, &readfds)){
 
-        //For arrays
-         int targetArray[ARRAY_LEN]; 
+      int targetArray[ARRAY_LEN]; 
 
-        char *buffer = (char*)targetArray;
-        size_t remaining = sizeof(int) * ARRAY_LEN;
-        while (remaining) {
-          ssize_t recvd = read(socket_desc, buffer, remaining);
-          // TODO: check for read errors etc here...
-          remaining -= recvd;
-          buffer += recvd;
+      char *buffer = (char*)targetArray;
+      size_t remaining = sizeof(int) * ARRAY_LEN;
+      while (remaining) {
+        ssize_t recvd = read(socket_desc, buffer, remaining);
+        
+        if(recvd == -1){
+          perror("recvd error");
         }
-        draw_board(targetArray);
-      /*   for (m=0;m<=ARRAY_LEN;m++){ */
-      /*     if (m%10 == 0) */
-      /*       printf("\n"); */
-      /*     printf(" %d", targetArray[m]); */
-      /*   } */
-      /* } */
-      
+        // TODO: check for read errors etc here...
+        remaining -= recvd;
+        buffer += recvd;
       }
+      draw_board(targetArray);
+
       
     }
+      
+  }//while loop
     
-    if( send(socket_desc , message , strlen(message) , 0) < 0)
+  if( send(socket_desc , message , strlen(message) , 0) < 0)
     {
-        puts("Send failed");
-        return 1;
+      puts("Send failed");
+      return 1;
     }
-    puts("Data Send\n");
+  puts("Data Send\n");
      
-    //Receive a reply from the server
-    if( recv(socket_desc, server_reply , 2000 , 0) < 0)
+  //Receive a reply from the server
+  if( recv(socket_desc, server_reply , 2000 , 0) < 0)
     {
-        puts("recv failed");
+      puts("recv failed");
     }
-    puts("Reply received\n");
-    puts(server_reply);
+  puts("Reply received\n");
+  puts(server_reply);
      
-    return 0;
-}
+  return 0;
+}//main
 
 
-
-
+//Reads key pressed and returns it as char
+//If no key was pressed, or if a key was pressed that wasn't an arrow key, function
+//returns -50;
 char read_input(int socket) {
   int key = getch();
   char key_ts;
@@ -212,17 +194,6 @@ char read_input(int socket) {
     return -50;
  
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 //Functions from worm.c to represent screen
@@ -278,6 +249,7 @@ void init_display() {
 }
 
 
+//Draws the board on the screen based on the array that was passed in
 void draw_board(int *board) {
   int r, c;
   // Loop over cells of the game board
@@ -286,16 +258,57 @@ void draw_board(int *board) {
       if(board[r*BOARD_WIDTH+c] == 0) {  // Draw blank spaces
         mvaddch(screen_row(r), screen_col(c), ' ');
       } else if(board[r*BOARD_WIDTH+c] > 0) {  // Draw worm
-        mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD);
+        if(board[r*BOARD_WIDTH+c] % NUMBER_OF_PLAYERS == 0){
+          mvaddch(screen_row(r), screen_col(c), '0');
+        }
+        else{
+          mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD);
+        }  //Check to see if modulo 2 == 0 to draw different game
+
       } else {  // Draw apple spinner thing
         char spinner_chars[] = {'|', '/', '-', '\\'};
         mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r*BOARD_WIDTH+c] % 4)]);
       }
     }
   }
+
   
   // Draw the score
   //mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length-INIT_WORM_LENGTH);
   
   refresh();
 }
+
+
+
+
+
+
+///////////////////////////////////////////////////////
+
+
+/* Commented out sections of code which might be useful one day
+
+   Read from stdin and send message to server
+
+   /* if (FD_ISSET(stdin_sd, &readfds)){ */
+/*    fgets(message, 1024, stdin); */
+/*   send(socket_desc , message , strlen(message) , 0); */
+   
+/* } */
+
+/* Get message from server and then print it out
+
+//Prints out a message
+/* valread = read( socket_desc , message, 1024); */
+/* message[valread] = '\0'; */
+/* printf("%s", message); */
+/* //printf("Message received!\n"); */
+/* printf("%s", message); */
+/* int j, k;
+   /* for(j=0; j<50; j++){ */
+/*   for(k=0; k<25;k++){ */
+/*     printf("%d ", client_array[j][k]); */
+/*   } */
+/*   printf("\n"); */
+/* } */    
