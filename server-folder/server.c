@@ -1,3 +1,7 @@
+/*
+Program that runs the server 
+*/
+
 #include <stdio.h>
 #include <string.h>   //strlen
 #include <stdlib.h>
@@ -41,7 +45,7 @@
 #define NUMBER_OF_PLAYERS 2
 #define THRESHOLD_VALUE 10000
 
-#define SCORE_CAP 4
+#define SCORE_CAP 10
 
 //Game variables
 //board
@@ -326,15 +330,29 @@ void end_game(int loser) {
   board[BOARD_HEIGHT][3] = loser;
   if(loser == 1){
     mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
-    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 2 Wins");
-    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 1 You Suck ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 2 Wins!");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-16, " Player 1 You Should Delete This Game And");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-16, "Go Do Something Productive in Your Life");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+3, screen_col(BOARD_WIDTH/2)-6, "            ");
+  }
+  else if (loser == 2){
+    mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 1 Wins! ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 2 You Just Got Rekt");
     mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-6, "            ");
   }
-  else{
+  else if (loser == 3){
     mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
-    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 1 Winds! ");
-    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 2 You Just Got Ownt");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 2 Wins! ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-26, "Cause Player 1 Was Too Much of a Wuss to Continue");
     mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-6, "            ");
+  }
+  else if (loser == 4){
+    mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 1 Wins! ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-16, " Player 2 Decided to Join the ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-16, " Gallus Gallus Domesticus Family");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+3, screen_col(BOARD_WIDTH/2)-6, "            ");
   }
   refresh();
   send_board();
@@ -557,8 +575,7 @@ void update_worm_1() {
 
 // Check for keyboard input and respond accordingly
 void read_input(char key, int i) {
-  //Printf key pressed - for debugging
-  //printf("Keystroke: %c\n", key);
+  
   if (i == 0){
     if(key == 'w' && worm_dir0 != DIR_SOUTH) {
       worm_dir0 = DIR_NORTH;
@@ -569,6 +586,7 @@ void read_input(char key, int i) {
     } else if(key == 'a' && worm_dir0 != DIR_EAST) {
       worm_dir0 = DIR_WEST;
     } else if(key == 'q') {
+      end_game(3);
       stop_scheduler();
       return;
     }
@@ -583,6 +601,7 @@ void read_input(char key, int i) {
     } else if(key == 'a' && worm_dir1 != DIR_EAST) {
       worm_dir1 = DIR_WEST;
     } else if(key == 'q') {
+      end_game(4);
       stop_scheduler();
       return;
     }
@@ -661,9 +680,6 @@ int scheduler_init() {
   
   // Create a job to draw the board every 33ms
   add_job(draw_board, 33);
-  
-  // Create a job to read user input every 150ms
-  // add_job(read_input, 150);
   
   // Create a job to update apples every 120ms
   add_job(update_apples, 120);
