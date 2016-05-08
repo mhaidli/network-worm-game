@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <string.h>   //strlen
 #include <stdlib.h>
@@ -39,39 +38,78 @@
 #define BOARD_WIDTH 50
 #define BOARD_HEIGHT 25
 #define ARRAY_LEN BOARD_WIDTH*BOARD_HEIGHT
+#define NUMBER_OF_PLAYERS 2
+#define THRESHOLD_VALUE 10000
 
-//Game vairables
+//Game variables
 //board
 int board[BOARD_HEIGHT][BOARD_WIDTH];
 int board_1d[ARRAY_LEN];
 
 // Worm parameters
-int worm_dir = DIR_NORTH;
-int worm_length = INIT_WORM_LENGTH;
+/* int worm_dir = DIR_NORTH; */
+/* int worm_length = INIT_WORM_LENGTH; */
+
+/* int worm2_dir = DIR_NORTH; */
+/* int worm2_length = INIT_WORM_LENGTH; */
+
+int worm_dir0 = DIR_NORTH;
+int worm_dir1 = DIR_NORTH;
+int worm_length0 = INIT_WORM_LENGTH;
+int worm_length1 = INIT_WORM_LENGTH;
 
 // Apple parameters
 int apple_age = 120;
 
 
 //Function signatures
+
+//Initialize scheduler
 int scheduler_init();
-void read_input(char key);
+
+//Change worm direction based on the input passed in
+void read_input(char key, int i);
+//Gets keystrokes pressed from client and passes it to read_input to change worm direction
 void get_keystrokes();
+//Sends an array representation of the board to the clients
+void send_board();
+
+//Game Functions
+// Pick a random location and generate an apple there
+void generate_apple();
+// Add to the apple numbers to control their duration and animation
+void update_apples();
+// Update the age of each segment of the worm and move the worm into its next position
+void update_worm();
+// Show a game over message, wait for a key press, then stop the game scheduler
+void end_game();
 
 //These technically do not exist here
-void send_board();
+//Initializes screen for Worm! game
 void init_display();
-int screen_col(int col);
-int screen_row(int row);
+
+//Convert a board row number to a screen position
+int screen_row(int col);
+
+//Convert a board column number to a screen position
+int screen_col(int row);
 
 
-//Global variables for get_keystroes function
+
+//Global variables
 fd_set readfds;
-int client_socket[5];
-int max_clients = 5;
+int max_clients = 2;
+int client_socket[NUMBER_OF_PLAYERS];
+
+
 //Main
 int main(int argc , char *argv[])
 {
+
+  //Init arrays for worm
+
+
+
   //Variables
   int opt = TRUE;
   int master_socket , addrlen , new_socket;
@@ -82,17 +120,16 @@ int main(int argc , char *argv[])
   int client_sock;
   int connections = 0;
 
-  int sourceArray[ARRAY_LEN];
-  for (l=0;l<ARRAY_LEN;l++)
-            sourceArray[l] = l;
+  /* for(i=0; i< NUMBER_OF_PLAYERS; i++){ */
+  /*   worm_dir[i] = DIR_NORTH; */
+  /*   worm_length[i] = INIT_WORM_LENGTH; */
+  /* } */
+
   
   struct sockaddr_in address;
       
   char buffer[1025];  //data buffer of 1K
-      
-  //set of socket descriptors
-  //fd_set readfds;
-      
+
   //a message
   char *message = "WELCOME TO SERVER";
   
@@ -140,7 +177,6 @@ int main(int argc , char *argv[])
   addrlen = sizeof(address);
   puts("Waiting for connections ...");
 
-  //   fd_set readfds = *readfds_addr;
   while(TRUE) 
     {
       //clear the socket set
@@ -188,13 +224,7 @@ int main(int argc , char *argv[])
           //inform user of socket number - used in send and receive commands
           printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
           connections++;
-          //RUN SCHEDULER FUNCTION
-        
-          //send new connection greeting message
-          /* if( send(new_socket, message, strlen(message), 0) != strlen(message) )  */
-          /*   { */
-          /*     perror("send"); */
-          /*   } */
+
           client_sock = new_socket;
           puts("Welcome message sent successfully");
               
@@ -210,15 +240,12 @@ int main(int argc , char *argv[])
                   break;
                 }
             }
-           if (connections == 1)
+          
+          //If we have right number of players, initialize game by initializing scheduler
+           if (connections == NUMBER_OF_PLAYERS)
              scheduler_init();
-             //SCHEDULER
         }
-      
 
-      //Send array to client
-      
-      //int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
     }//while
     
       
@@ -233,6 +260,7 @@ int main(int argc , char *argv[])
 
 //The below three functions, screen_row, screen_col, and init_display all concern themselves with
 //displaying the board, and so are moved to the client.
+//They have been left here so that the screen is also displayed in the server, to aid in debugging.
 /**
  * Convert a board row number to a screen position
  * \param   row   The board row number to convert
@@ -301,7 +329,11 @@ void draw_board() {
       if(board[r][c] == 0) {  // Draw blank spaces
         mvaddch(screen_row(r), screen_col(c), ' ');
       } else if(board[r][c] > 0) {  // Draw worm
-        mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD);
+        if(board[r][c] < THRESHOLD_VALUE){
+          mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD);
+        }
+        else
+          mvaddch(screen_row(r), screen_col(c), '0'); 
       } else {  // Draw apple spinner thing
         char spinner_chars[] = {'|', '/', '-', '\\'};
         mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r][c] % 4)]);
@@ -310,33 +342,48 @@ void draw_board() {
   }
   
   // Draw the score
-  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length-INIT_WORM_LENGTH);
+  int i;
+  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length0-INIT_WORM_LENGTH);
   
   refresh();
 }
 
-// Check for keyboard input and respond accordingly
-void read_input(char key) {
-  // int key;// = getch();
-  printf("Keystroke: %c\n", key);
-  if(key == 'w' && worm_dir != DIR_SOUTH) {
-    worm_dir = DIR_NORTH;
-  } else if(key == 'd' && worm_dir != DIR_WEST) {
-    worm_dir = DIR_EAST;
-  } else if(key == 's' && worm_dir != DIR_NORTH) {
-    worm_dir = DIR_SOUTH;
-  } else if(key == 'a' && worm_dir != DIR_EAST) {
-    worm_dir = DIR_WEST;
-  } else if(key == 'q') {
-    stop_scheduler();
-    return;
-  }
-}
+/* // Draw the actual game board. Board state is stored in a single 2D integer array. */
+/* void draw_board() { */
+/*   // Loop over cells of the game board */
+/*   //printf("stardedd dwb\n"); */
+/*   for(int r=0; r<BOARD_HEIGHT; r++) { */
+/*     for(int c=0; c<BOARD_WIDTH; c++) { */
+/*       if(board[r][c] == 0) {  // Draw blank spaces */
+/*         mvaddch(screen_row(r), screen_col(c), ' '); */
+/*       } else if(board[r][c] > 0) {  // Draw worm */
+/*         if(board[r][c] % NUMBER_OF_PLAYERS == 0){ */
+/*           mvaddch(screen_row(r), screen_col(c), '0'); */
+/*         } */
+/*         else{ */
+/*           mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD); */
+/*         }  //Check to see if modulo 2 == 0 to draw different game */
+/*       } else {  // Draw apple spinner thing */
+/*         char spinner_chars[] = {'|', '/', '-', '\\'}; */
+/*         mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r][c] % 4)]); */
+/*       } */
+/*     } */
+/*     //printf("Finishd dwb\n"); */
+/*   } */
+  
+/*   // Draw the score */
+/*   mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length[0]-INIT_WORM_LENGTH); */
+  
+/*   refresh(); */
+/* } */
 
 // Update the age of each segment of the worm and move the worm into its next position
-void update_worm() {
+void update_worm_0() {
   int worm_row;
   int worm_col;
+  
+  int worm_dir = worm_dir0;
+  int worm_length = worm_length0;
   
   // "Age" each existing segment of the worm
   for(int r=0; r<BOARD_HEIGHT; r++) {
@@ -347,8 +394,8 @@ void update_worm() {
       }
       
       // Add 1 to the age of the worm segment
-      if(board[r][c] > 0) {
-        board[r][c]++;
+      if(board[r][c] > 0 && THRESHOLD_VALUE > board[r][c]) {
+        board[r][c]+=1;
         
         // Remove the worm segment if it is too old
         if(board[r][c] > worm_length) {
@@ -371,12 +418,16 @@ void update_worm() {
   
   // Check for edge collisions
   if(worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) {
+    
+    printf("yousa3\n");
     end_game();
     return;
   }
   
   // Check for worm collisions
   if(board[worm_row][worm_col] > 0) {
+    
+    printf("yousa4\n");
     end_game();
     return;
   }
@@ -384,7 +435,7 @@ void update_worm() {
   // Check for apple collisions
   if(board[worm_row][worm_col] < 0) {
     // Worm gets longer
-    worm_length++;
+    worm_length0++;
   }
   
   // Add the worm's new position
@@ -397,6 +448,115 @@ void update_worm() {
     update_job_interval(WORM_HORIZONTAL_INTERVAL);
   }
 }
+
+
+// Update the age of each segment of the worm and move the worm into its next position
+void update_worm_1() {
+  int worm_row;
+  int worm_col;
+
+  int worm_dir = worm_dir1;
+  int worm_length = worm_length1;
+  
+  // "Age" each existing segment of the worm
+  for(int r=0; r<BOARD_HEIGHT; r++) {
+    for(int c=0; c<BOARD_WIDTH; c++) {
+      if(board[r][c] == THRESHOLD_VALUE) {  // Found the head of the worm. Save position
+        worm_row = r;
+        worm_col = c;
+      }
+      
+      // Add 1 to the age of the worm segment
+      if(board[r][c] >= THRESHOLD_VALUE ) {
+        board[r][c]+= 1;
+        
+        // Remove the worm segment if it is too old
+        if(board[r][c] > (worm_length + THRESHOLD_VALUE)) {
+          board[r][c] = 0;
+        }
+      }
+    }
+  }
+  
+  // Move the worm into a new space
+  if(worm_dir == DIR_NORTH) {
+    worm_row--;
+  } else if(worm_dir == DIR_SOUTH) {
+    worm_row++;
+  } else if(worm_dir == DIR_EAST) {
+    worm_col++;
+  } else if(worm_dir == DIR_WEST) {
+    worm_col--;
+  }
+  
+  // Check for edge collisions
+  if(worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) {
+    printf("yousa\n");
+    end_game();
+    return;
+  }
+  
+  // Check for worm collisions
+  if(board[worm_row][worm_col] > 0) {
+    printf("yousa2\n");
+    end_game();
+    return;
+  }
+  
+  // Check for apple collisions
+  if(board[worm_row][worm_col] < 0) {
+    // Worm gets longer
+    worm_length1++;
+  }
+  
+  // Add the worm's new position
+  board[worm_row][worm_col] = THRESHOLD_VALUE;
+  
+  // Update the worm movement speed to deal with rectangular cursors
+  if(worm_dir == DIR_NORTH || worm_dir == DIR_SOUTH) {
+    update_job_interval(WORM_VERTICAL_INTERVAL);
+  } else {
+    update_job_interval(WORM_HORIZONTAL_INTERVAL);
+  }
+}
+
+
+
+// Check for keyboard input and respond accordingly
+void read_input(char key, int i) {
+  //Printf key pressed - for debugging
+  //printf("Keystroke: %c\n", key);
+  if (i == 0){
+    if(key == 'w' && worm_dir0 != DIR_SOUTH) {
+      worm_dir0 = DIR_NORTH;
+    } else if(key == 'd' && worm_dir0 != DIR_WEST) {
+      worm_dir0 = DIR_EAST;
+    } else if(key == 's' && worm_dir0 != DIR_NORTH) {
+      worm_dir0 = DIR_SOUTH;
+    } else if(key == 'a' && worm_dir0 != DIR_EAST) {
+      worm_dir0 = DIR_WEST;
+    } else if(key == 'q') {
+      stop_scheduler();
+      return;
+    }
+  }
+  else{
+    if(key == 'w' && worm_dir1 != DIR_SOUTH) {
+      worm_dir1 = DIR_NORTH;
+    } else if(key == 'd' && worm_dir1 != DIR_WEST) {
+      worm_dir1 = DIR_EAST;
+    } else if(key == 's' && worm_dir1 != DIR_NORTH) {
+      worm_dir1 = DIR_SOUTH;
+    } else if(key == 'a' && worm_dir1 != DIR_EAST) {
+      worm_dir1 = DIR_WEST;
+    } else if(key == 'q') {
+      stop_scheduler();
+      return;
+    }
+  }
+}
+
+
 
 // Add to the apple numbers to control their duration and animation
 void update_apples() {
@@ -448,28 +608,33 @@ int scheduler_init() {
   memset(board, 0, BOARD_WIDTH*BOARD_HEIGHT*sizeof(int));
   
   // Put the worm at the middle of the board
-  board[BOARD_HEIGHT/2][BOARD_WIDTH/2] = 1;
+  int divisions = 2 * NUMBER_OF_PLAYERS;
+
+  board[BOARD_HEIGHT/2][(BOARD_WIDTH) / (NUMBER_OF_PLAYERS + 1)] = 1;
+  board[BOARD_HEIGHT/2][(BOARD_WIDTH * 2) / (NUMBER_OF_PLAYERS + 1)] = THRESHOLD_VALUE;
+
   
   // Create a job to update the worm every 200ms
-  add_job(update_worm, 200);
+  add_job(update_worm_0, 2000);
+  add_job(update_worm_1, 2000);
   
   // Create a job to draw the board every 33ms
-  add_job(draw_board, 33);
+  add_job(draw_board, 330);
   
   // Create a job to read user input every 150ms
   // add_job(read_input, 150);
   
   // Create a job to update apples every 120ms
-  add_job(update_apples, 120);
+  add_job(update_apples, 1200);
   
   // Create a job to generate new apples every 2 seconds
-  add_job(generate_apple, 2000);
+  add_job(generate_apple, 20000);
 
   //Create job to check for keystrokes ever 150ms
-  add_job(get_keystrokes, 150);
+  add_job(get_keystrokes, 1500);
 
-  //sending array
-  add_job(send_board, 33);
+  //send array every 33ms
+  add_job(send_board, 330);
   
   // Generate a few apples immediately
   for(int i=0; i<5; i++) {
@@ -486,15 +651,13 @@ int scheduler_init() {
   return 0;
 }
 
-int counter = 0;
 
 // Function to check for keystrokes from client
-//CHECKING FOR STUFF
-void get_keystrokes(/*int* maxclients, fd_set* readfds*/){
+void get_keystrokes(){
   int i;
   char buffer[1025];
   int sd;
-  int max_clients = 1;
+  int max_clients = 2;
   int valread;
   int max_sd = -1;
 
@@ -502,40 +665,33 @@ void get_keystrokes(/*int* maxclients, fd_set* readfds*/){
     
   mytime.tv_sec=0;         /* seconds */
   mytime.tv_usec=0;        /* microseconds */
-           
-  
+   
   FD_ZERO(&readfds);
 
-  counter++;
-
-  
-  
-   for ( i = 0 ; i < max_clients ; i++) 
-        {
-          //socket descriptor
-          sd = client_socket[i];
+  //Add clients in client socket to readfds;
+  for ( i = 0 ; i < max_clients ; i++) 
+    {
+      //socket descriptor
+      sd = client_socket[i];
              
-          //if valid socket descriptor then add to read list
-          if(sd > 0)
-            FD_SET( sd , &readfds);
+      //if valid socket descriptor then add to read list
+      if(sd > 0)
+        FD_SET( sd , &readfds);
              
-          //highest file descriptor number, need it for the select function
-          if(sd > max_sd)
-            max_sd = sd;
-        }
+      //highest file descriptor number, need it for the select function
+      if(sd > max_sd)
+        max_sd = sd;
+    }
 
-         //wait for an activity on one of the sockets , timeout is NULL , so wait indefinitely
-
+  //wait for an activity on one of the sockets , timeout is 0 , so return immediately
+  int activity = select( max_sd + 1 , &readfds , NULL , NULL , &mytime);
+ 
+  if ((activity < 0) && (errno!=EINTR)) 
+    {
+      printf("select error");
+    }
   
-     int activity = select( max_sd + 1 , &readfds , NULL , NULL , &mytime);
-   
-  
-      if ((activity < 0) && (errno!=EINTR)) 
-        {
-          printf("select error");
-        }
-   
-  //else its some IO operation on some other socket :)
+  //Check activity from sockets
   for (i = 0; i < max_clients; i++) 
     {
 
@@ -547,44 +703,227 @@ void get_keystrokes(/*int* maxclients, fd_set* readfds*/){
       //If curret client socket was active, deal with situ   
       if (FD_ISSET( sd , &readfds) &&  sd != fileno(stdin) )
         {
-          //Check if it was for closing , and also read the incoming message
+          //Check if it was for closing
           if ((valread = read( sd , buffer, 1024)) == 0)
             {
-              /* //Somebody disconnected , get his details and print */
-              /* getpeername(sd , (struct sockaddr*)&address , (socklen_t*)&addrlen); */
-              /* printf("Host disconnected , ip %s , port %d \n" , inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); */
-                      
-              /* //Close the socket and mark as 0 in list for reuse */
-              /* close( sd ); */
-              /* client_socket[i] = 0; */
+              ;//TODO: APPROPIATELY END GAME
             }
-
-              
-          //Echo back the message that came in
+          
+          //Get key that was pressed and pass to read_input
           else
             {
-              //set the string terminating NULL byte on the end of the data read
-              read_input(buffer[0]);
-              //buffer[valread] = '\0';
-              //printf("%s", buffer);
-            
-              
-
-              //  int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
-              //   send(sd , buffer , strlen(buffer) , 0 );
+              read_input(buffer[0], i);
             }
         }
-
-      //Else, check to see if stdin was activated
-       
     }
-    
 }
 
 
+//Sends an array representation of the board to the clients
 void send_board()
 {
   for(int i=0;i<max_clients;i++){
-  int result = send(client_socket[i], board, sizeof(int) * ARRAY_LEN, 0);
+    int result = send(client_socket[i], board, sizeof(int) * ARRAY_LEN, 0);
+    if(result == -1)
+      perror("send failed");
   }
 }
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////
+
+
+/* Commented out sections of code which might be useful one day
+
+Send message to client socket
+        
+//send new connection greeting message
+/* if( send(new_socket, message, strlen(message), 0) != strlen(message) )  */
+/*   { */
+/*     perror("send"); */
+/*   } */
+      
+
+//Send array to client
+      
+//int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
+
+
+//What to do if client disconnects
+
+/* //Somebody disconnected , get his details and print */
+/* getpeername(sd , (struct sockaddr*)&address , (socklen_t*)&addrlen); */
+/* printf("Host disconnected , ip %s , port %d \n" , inet_ntoa(address.sin_addr) , ntohs(address.sin_port)); */
+                      
+/* //Close the socket and mark as 0 in list for reuse */
+/* close( sd ); */
+/* client_socket[i] = 0; */
+
+
+//Receive message from client and print it out
+
+//buffer[valread] = '\0';
+//printf("%s", buffer);
+//  int result = send(client_sock, sourceArray, sizeof(int) * ARRAY_LEN, 0);
+//   send(sd , buffer , strlen(buffer) , 0 );
+
+
+
+/* // Update the age of each segment of the worm and move the worm into its next position */
+/* void update_worm() { */
+/*   //printf("Enter update worm\n"); */
+/*   int i; */
+
+/*   for(i=0; i < NUMBER_OF_PLAYERS; i++){ */
+
+/*     int worm_row; */
+/*     int worm_col; */
+/*     // "Age" each existing segment of the worm */
+/*     for(int r=0; r<BOARD_HEIGHT; r++) { */
+/*       for(int c=0; c<BOARD_WIDTH; c++) { */
+/*         if(board[r][c] == i+1) {  // Found the head of the worm. Save position */
+/*           worm_row = r; */
+/*           worm_col = c; */
+/*         } */
+      
+/*         // Add 1 to the age of the worm segment */
+/*         if(board[r][c] > 0) { */
+/*           board[r][c] += NUMBER_OF_PLAYERS; */
+        
+/*           // Remove the worm segment if it is too old */
+/*           if(board[r][c] > (worm_length[i] * NUMBER_OF_PLAYERS)) { */
+/*             if(board[r][c] - (i+1) % NUMBER_OF_PLAYERS == 0) */
+/*               board[r][c] = 0; */
+/*           } */
+/*         } */
+/*       } */
+/*     } */
+  
+/*     // Move the worm into a new space */
+/*     if(worm_dir[i] == DIR_NORTH) { */
+/*       worm_row--; */
+/*     } else if(worm_dir[i] == DIR_SOUTH) { */
+/*       worm_row++; */
+/*     } else if(worm_dir[i] == DIR_EAST) { */
+/*       worm_col++; */
+/*     } else if(worm_dir[i] == DIR_WEST) { */
+/*       worm_col--; */
+/*     } */
+  
+/*     // Check for edge collisions */
+/*     if(worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) { */
+/*       printf("Here not baby\n"); */
+/*       end_game(); */
+/*       return; */
+/*     } */
+  
+/*     // Check for worm collisions */
+/*     if(board[worm_row][worm_col] > 0) { */
+/*       printf("Here baby\n"); */
+/*       end_game(); */
+/*       return; */
+/*     } */
+  
+/*     // Check for apple collisions */
+/*     if(board[worm_row][worm_col] < 0) { */
+/*       // Worm gets longer */
+/*       worm_length[i]++; */
+/*     } */
+  
+/*     // Add the worm's new position */
+/*     board[worm_row][worm_col] = i+1; */
+  
+/*     // Update the worm movement speed to deal with rectangular cursors */
+/*     /\* if(worm_dir[i] == DIR_NORTH || worm_dir[i] == DIR_SOUTH) { *\/ */
+/*     /\*   update_job_interval(WORM_VERTICAL_INTERVAL); *\/ */
+/*     /\* } //else { *\/ */
+/*     /\*   //update_job_interval(WORM_HORIZONTAL_INTERVAL); *\/ */
+/*     /\* //} *\/ */
+/*     //printf("Finishd uw\n"); */
+/*   } */
+/* } */
+
+
+//Length works fine
+
+/* /\* /\\* // Update the age of each segment of the worm and move the worm into its next position *\\/ *\/ */
+/* /\* /\\* void update_worm_0() { *\\/ *\/ */
+/* /\* /\\*   int i = 0; *\\/ *\/ */
+/* /\* /\\*   for(i=0; i < NUMBER_OF_PLAYERS; i++){ *\\/ *\/ */
+/* /\* /\\*     int worm_row; *\\/ *\/ */
+/* /\* /\\*     int worm_col; *\\/ *\/ */
+  
+/* /\* /\\*     // "Age" each existing segment of the worm *\\/ *\/ */
+/* /\* /\\*     for(int r=0; r<BOARD_HEIGHT; r++) { *\\/ *\/ */
+/* /\* /\\*       for(int c=0; c<BOARD_WIDTH; c++) { *\\/ *\/ */
+/* /\* /\\*         if(board[r][c] == i+1){  // Found the head of the worm. Save position *\\/ *\/ */
+/* /\* /\\*           worm_row = r; *\\/ *\/ */
+/* /\* /\\*           worm_col = c; *\\/ *\/ */
+/* /\* /\\*         } *\\/ *\/ */
+      
+/* /\* /\\*         // Add 1 to the age of the worm segment *\\/ *\/ */
+/* /\* /\\*         if(board[r][c] > 0) { *\\/ *\/ */
+/* /\* /\\*           board[r][c] += NUMBER_OF_PLAYERS; *\\/ *\/ */
+        
+/* /\* /\\*           // Remove the worm segment if it is too old *\\/ *\/ */
+/* /\* /\\*           if(board[r][c] > (worm_length[i] * NUMBER_OF_PLAYERS) && (board[r][c] - (i+1)) % NUMBER_OF_PLAYERS == 0) { *\\/ *\/ */
+/* /\* /\\*             board[r][c] = 0; *\\/ *\/ */
+/* /\* /\\*           } *\\/ *\/ */
+/* /\* /\\*         } *\\/ *\/ */
+/* /\* /\\*       } *\\/ *\/ */
+/* /\* /\\*     } *\\/ *\/ */
+  
+/* /\* /\\*     // Move the worm into a new space *\\/ *\/ */
+/* /\* /\\*     if(worm_dir[i] == DIR_NORTH) { *\\/ *\/ */
+/* /\* /\\*       worm_row--; *\\/ *\/ */
+/* /\* /\\*     } else if(worm_dir[i] == DIR_SOUTH) { *\\/ *\/ */
+/* /\* /\\*       worm_row++; *\\/ *\/ */
+/* /\* /\\*     } else if(worm_dir[i] == DIR_EAST) { *\\/ *\/ */
+/* /\* /\\*       worm_col++; *\\/ *\/ */
+/* /\* /\\*     } else if(worm_dir[i] == DIR_WEST) { *\\/ *\/ */
+/* /\* /\\*       worm_col--; *\\/ *\/ */
+/* /\* /\\*     } *\\/ *\/ */
+  
+/* /\* /\\*     // Check for edge collisions *\\/ *\/ */
+/* /\* /\\*     if(worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) { *\\/ *\/ */
+/* /\* /\\*       end_game(); *\\/ *\/ */
+/* /\* /\\*       return; *\\/ *\/ */
+/* /\* /\\*     } *\\/ *\/ */
+  
+/* /\* /\\*     // Check for worm collisions *\\/ *\/ */
+/* /\* /\\*     if(board[worm_row][worm_col] > 0) { *\\/ *\/ */
+/* /\* /\\*       end_game(); *\\/ *\/ */
+/* /\* /\\*       return; *\\/ *\/ */
+/* /\* /\\*     } *\\/ *\/ */
+  
+/* /\* /\\*     // Check for apple collisions *\\/ *\/ */
+/* /\* /\\*     if(board[worm_row][worm_col] < 0) { *\\/ *\/ */
+/* /\* /\\*       // Worm gets longer *\\/ *\/ */
+/* /\* /\\*       worm_length[i]++; *\\/ *\/ */
+/* /\* /\\*     } *\\/ *\/ */
+  
+/* /\* /\\*     // Add the worm's new position *\\/ *\/ */
+/* /\* /\\*     board[worm_row][worm_col] = 1; *\\/ *\/ */
+  
+/* /\* /\\*     // Update the worm movement speed to deal with rectangular cursors *\\/ *\/ */
+/* /\* /\\*     if(worm_dir[i] == DIR_NORTH || worm_dir[i] == DIR_SOUTH) { *\\/ *\/ */
+/* /\* /\\*       update_job_interval(WORM_VERTICAL_INTERVAL); *\\/ *\/ */
+/* /\* /\\*     } else { *\\/ *\/ */
+/* /\* /\\*       update_job_interval(WORM_HORIZONTAL_INTERVAL); *\\/ *\/ */
+/* /\* /\\*     } *\\/ *\/ */
+/* /\* /\\*   } *\\/ *\/ */
+/* /\* /\\* } *\\/ *\/ */
+
+//Put worm in middle of board
+  /* int i; */
+  /* for(i = 1; i <= NUMBER_OF_PLAYERS; i++){ */
+  /*   if (i == 1) */
+  /*     board[BOARD_HEIGHT/2][(BOARD_WIDTH * i) / (NUMBER_OF_PLAYERS + 1)] = i; */
+  /*   else */
+  /*     board[BOARD_HEIGHT/2][(BOARD_WIDTH * i) / (NUMBER_OF_PLAYERS + 1)] = 1000; */
+  /* } */
