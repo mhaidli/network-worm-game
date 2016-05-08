@@ -259,7 +259,7 @@ void draw_board(int *board) {
       if(board[r*BOARD_WIDTH+c] == 0) {  // Draw blank spaces
         mvaddch(screen_row(r), screen_col(c), ' ');
       } else if(board[r*BOARD_WIDTH+c] > 0) {  // Draw worm
-        if(board[r*BOARD_WIDTH+c] > THRESHOLD_VALUE){
+        if(board[r*BOARD_WIDTH+c] >= THRESHOLD_VALUE){
           mvaddch(screen_row(r), screen_col(c), '0');
         }
         else{
@@ -275,7 +275,7 @@ void draw_board(int *board) {
 
   
   // Draw the score
-  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[(BOARD_HEIGHT+1) * BOARD_WIDTH], board[(BOARD_HEIGHT+1) * BOARD_WIDTH + 1]);
+  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[(BOARD_HEIGHT+1) * BOARD_WIDTH], board[((BOARD_HEIGHT+1) * BOARD_WIDTH) + 1]);
   
   refresh();
 }
