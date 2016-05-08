@@ -37,6 +37,8 @@ int screen_col(int row);
 //Draws the board on the screen based on the array that was passed in
 void draw_board(int *board);
 
+//Ends game
+void end_game(int loser);
 
 //main
 int main(int argc , char *argv[])
@@ -231,6 +233,7 @@ void init_display() {
   mvaddch(screen_row(-1), screen_col(BOARD_WIDTH), ACS_URCORNER);
   mvaddch(screen_row(BOARD_HEIGHT), screen_col(-1), ACS_LLCORNER);
   mvaddch(screen_row(BOARD_HEIGHT), screen_col(BOARD_WIDTH), ACS_LRCORNER);
+  mvprintw(screen_row(BOARD_HEIGHT+1), screen_col((BOARD_WIDTH/3) - 8), "First to 10. May the force be with you");
   
   // Print top and bottom edges
   int row, col;
@@ -238,6 +241,8 @@ void init_display() {
     mvaddch(screen_row(-1), screen_col(col), ACS_HLINE);
     mvaddch(screen_row(BOARD_HEIGHT), screen_col(col), ACS_HLINE);
   }
+
+
   
   // Print left and right edges
   
@@ -254,28 +259,40 @@ void init_display() {
 void draw_board(int *board) {
   int r, c;
   // Loop over cells of the game board
-  for( r=0; r<BOARD_HEIGHT; r++) {
-    for( c=0; c<BOARD_WIDTH; c++) {
-      if(board[r*BOARD_WIDTH+c] == 0) {  // Draw blank spaces
-        mvaddch(screen_row(r), screen_col(c), ' ');
-      } else if(board[r*BOARD_WIDTH+c] > 0) {  // Draw worm
-        if(board[r*BOARD_WIDTH+c] >= THRESHOLD_VALUE){
-          mvaddch(screen_row(r), screen_col(c), '0');
-        }
-        else{
-          mvaddch(screen_row(r), screen_col(c), ACS_CKBOARD);
-        }  //Check to see if modulo 2 == 0 to draw different game
+  if(board[((BOARD_HEIGHT*BOARD_WIDTH) + 3)] != 0)
+    end_game(board[((BOARD_HEIGHT*BOARD_WIDTH) + 3)]);
+  else{
+    for( r=0; r<BOARD_HEIGHT; r++) {
+      for( c=0; c<BOARD_WIDTH; c++) {
+        if(board[r*BOARD_WIDTH+c] == 0) {  // Draw blank spaces
+          mvaddch(screen_row(r), screen_col(c), ' ');
+        } else if(board[r*BOARD_WIDTH+c] > 0) {  // Draw worm
+          if(board[r*BOARD_WIDTH+c] >= THRESHOLD_VALUE){
+            mvaddch(screen_row(r), screen_col(c), 'O');
+          }
+          else{
+            mvaddch(screen_row(r), screen_col(c), '@');
+          }  //Check to see if modulo 2 == 0 to draw different game
 
-      } else {  // Draw apple spinner thing
-        char spinner_chars[] = {'|', '/', '-', '\\'};
-        mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r*BOARD_WIDTH+c] % 4)]);
+        } else {  // Draw apple spinner thing
+          char spinner_chars[] = {'|', '/', '-', '\\'};
+          mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r*BOARD_WIDTH+c] % 4)]);
+        }
       }
     }
   }
-
   
   // Draw the score
-  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[(BOARD_HEIGHT * BOARD_WIDTH) + 1], board[(BOARD_HEIGHT * BOARD_WIDTH) + 2]);
+  int player = board[((BOARD_HEIGHT*BOARD_WIDTH) + 2)] + 1;
+  char shape;
+  
+  if(player == 2)
+    shape = 'O';
+  else
+    shape = '@';
+      
+  mvprintw(screen_row(-2), screen_col(0), "Player %d {%c%c%c}\r", player, shape, shape, shape);
+  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-13), "Player1: %03d Player2: %03d\r", board[((BOARD_HEIGHT*BOARD_WIDTH) + 0)], board[((BOARD_HEIGHT * BOARD_WIDTH) + 1)]);
   
   refresh();
 }
@@ -283,7 +300,26 @@ void draw_board(int *board) {
 
 
 
-
+// Show a game over message, wait for a key press, then stop the game scheduler
+void end_game(int loser) {
+  
+  if(loser == 1){
+    mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 2 Wins");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 1 You Suck ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-6, "            ");
+  }
+  else{
+    mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 1 KICKS ASS! ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 2 You Are a n00b");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-6, "            ");
+  }
+  refresh();
+  /* timeout(-1); */
+  /* getch(); */
+  /* exit(0); */
+}
 
 ///////////////////////////////////////////////////////
 

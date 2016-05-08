@@ -37,13 +37,15 @@
 #define WORM_VERTICAL_INTERVAL 300
 #define BOARD_WIDTH 50
 #define BOARD_HEIGHT 25
-#define ARRAY_LEN BOARD_WIDTH*BOARD_HEIGHT
+#define ARRAY_LEN BOARD_WIDTH*(BOARD_HEIGHT+1)
 #define NUMBER_OF_PLAYERS 2
 #define THRESHOLD_VALUE 10000
 
+#define SCORE_CAP 4
+
 //Game variables
 //board
-int board[BOARD_HEIGHT][BOARD_WIDTH];
+int board[BOARD_HEIGHT+1][BOARD_WIDTH];
 int board_1d[ARRAY_LEN];
 
 // Worm parameters
@@ -220,6 +222,14 @@ int main(int argc , char *argv[])
               perror("accept");
               exit(EXIT_FAILURE);
             }
+
+
+
+          /* // send new connection greeting message */
+          /* if( send(new_socket, connections, sizeof(int), 0) != sizeof(int)) */
+          /*     { */
+          /*       perror("send"); */
+          /*     } */
           
           //inform user of socket number - used in send and receive commands
           printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
@@ -243,7 +253,7 @@ int main(int argc , char *argv[])
           
           //If we have right number of players, initialize game by initializing scheduler
            if (connections == NUMBER_OF_PLAYERS)
-             scheduler_init();
+             scheduler_init();             
         }
 
     }//while
@@ -282,7 +292,7 @@ int screen_col(int col) {
 // Initialize the board display by printing the title and edges
 void init_display() {
   // Print Title Line
-  move(screen_row(-2), screen_col(BOARD_WIDTH/2 - 5));
+  move(screen_row(-2), screen_col(BOARD_WIDTH/2 -5));
   addch(ACS_DIAMOND);
   addch(ACS_DIAMOND);
   printw(" Worm! ");
@@ -311,11 +321,23 @@ void init_display() {
 }
 
 // Show a game over message, wait for a key press, then stop the game scheduler
-void end_game() {
-  mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
-  mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Game Over! ");
-  mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, "            ");
+void end_game(int loser) {
+  
+  board[BOARD_HEIGHT][3] = loser;
+  if(loser == 1){
+    mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 2 Wins");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 1 You Suck ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-6, "            ");
+  }
+  else{
+    mvprintw(screen_row(BOARD_HEIGHT/2)-1, screen_col(BOARD_WIDTH/2)-6, "            ");
+    mvprintw(screen_row(BOARD_HEIGHT/2),   screen_col(BOARD_WIDTH/2)-6, " Player 1 Winds! ");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+1, screen_col(BOARD_WIDTH/2)-6, " Player 2 You Just Got Ownt");
+    mvprintw(screen_row(BOARD_HEIGHT/2)+2, screen_col(BOARD_WIDTH/2)-6, "            ");
+  }
   refresh();
+  send_board();
   timeout(-1);
   getch();
   stop_scheduler();
@@ -343,8 +365,11 @@ void draw_board() {
   
   // Draw the score
   int i;
-  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length0-INIT_WORM_LENGTH);
-  
+  //mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length0-INIT_WORM_LENGTH);
+    
+  // Draw the score
+  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[BOARD_HEIGHT][0], board[BOARD_HEIGHT][1]);
+
   refresh();
 }
 
@@ -419,16 +444,13 @@ void update_worm_0() {
   // Check for edge collisions
   if(worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) {
     
-    printf("yousa3\n");
-    end_game();
+    end_game(1);
     return;
   }
   
   // Check for worm collisions
   if(board[worm_row][worm_col] > 0) {
-    
-    printf("yousa4\n");
-    end_game();
+    end_game(1);
     return;
   }
   
@@ -440,6 +462,12 @@ void update_worm_0() {
   
   // Add the worm's new position
   board[worm_row][worm_col] = 1;
+
+  //Update score
+  int score = worm_length0 - INIT_WORM_LENGTH;
+  board[BOARD_HEIGHT][0] = score;
+  if (score >= SCORE_CAP)
+    end_game(2);
   
   // Update the worm movement speed to deal with rectangular cursors
   if(worm_dir == DIR_NORTH || worm_dir == DIR_SOUTH) {
@@ -471,7 +499,7 @@ void update_worm_1() {
         board[r][c]+= 1;
         
         // Remove the worm segment if it is too old
-        if(board[r][c] > (worm_length + THRESHOLD_VALUE)) {
+        if(board[r][c] >= (worm_length + THRESHOLD_VALUE)) {
           board[r][c] = 0;
         }
       }
@@ -491,15 +519,13 @@ void update_worm_1() {
   
   // Check for edge collisions
   if(worm_row < 0 || worm_row >= BOARD_HEIGHT || worm_col < 0 || worm_col >= BOARD_WIDTH) {
-    printf("yousa\n");
-    end_game();
+    end_game(2);
     return;
   }
   
   // Check for worm collisions
   if(board[worm_row][worm_col] > 0) {
-    printf("yousa2\n");
-    end_game();
+    end_game(2);
     return;
   }
   
@@ -511,6 +537,13 @@ void update_worm_1() {
   
   // Add the worm's new position
   board[worm_row][worm_col] = THRESHOLD_VALUE;
+
+  //Update score
+  int score = worm_length1 - INIT_WORM_LENGTH;
+  board[BOARD_HEIGHT][1] = score;
+  if (score >= SCORE_CAP)
+    end_game(1);
+
   
   // Update the worm movement speed to deal with rectangular cursors
   if(worm_dir == DIR_NORTH || worm_dir == DIR_SOUTH) {
@@ -613,28 +646,36 @@ int scheduler_init() {
   board[BOARD_HEIGHT/2][(BOARD_WIDTH) / (NUMBER_OF_PLAYERS + 1)] = 1;
   board[BOARD_HEIGHT/2][(BOARD_WIDTH * 2) / (NUMBER_OF_PLAYERS + 1)] = THRESHOLD_VALUE;
 
+
+  //Initialize score
+    //Update score
+  board[BOARD_HEIGHT+1][0] = 0;
+  board[BOARD_HEIGHT+1][1] = 0;
+
+  //Initialize Losing
+  board[BOARD_HEIGHT][3] = 0;
   
   // Create a job to update the worm every 200ms
-  add_job(update_worm_0, 2000);
-  add_job(update_worm_1, 2000);
+  add_job(update_worm_0, 200);
+  add_job(update_worm_1, 200);
   
   // Create a job to draw the board every 33ms
-  add_job(draw_board, 330);
+  add_job(draw_board, 33);
   
   // Create a job to read user input every 150ms
   // add_job(read_input, 150);
   
   // Create a job to update apples every 120ms
-  add_job(update_apples, 1200);
+  add_job(update_apples, 120);
   
   // Create a job to generate new apples every 2 seconds
-  add_job(generate_apple, 20000);
+  add_job(generate_apple, 10000);
 
   //Create job to check for keystrokes ever 150ms
-  add_job(get_keystrokes, 1500);
+  add_job(get_keystrokes, 150);
 
   //send array every 33ms
-  add_job(send_board, 330);
+  add_job(send_board, 33);
   
   // Generate a few apples immediately
   for(int i=0; i<5; i++) {
@@ -723,6 +764,7 @@ void get_keystrokes(){
 void send_board()
 {
   for(int i=0;i<max_clients;i++){
+    board[BOARD_HEIGHT][2] = i;
     int result = send(client_socket[i], board, sizeof(int) * ARRAY_LEN, 0);
     if(result == -1)
       perror("send failed");
