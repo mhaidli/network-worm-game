@@ -275,7 +275,7 @@ void draw_board(int *board) {
 
   
   // Draw the score
-  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[BOARD_HEIGHT+1][0], board[BOARD_HEIGHT+1][1]);
+  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[(BOARD_HEIGHT+1) * BOARD_WIDTH], board[(BOARD_HEIGHT+1) * BOARD_WIDTH + 1]);
   
   refresh();
 }
