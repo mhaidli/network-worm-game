@@ -15,8 +15,9 @@
 
 #define BOARD_WIDTH 50
 #define BOARD_HEIGHT 25
-#define ARRAY_LEN BOARD_WIDTH*BOARD_HEIGHT
+#define ARRAY_LEN BOARD_WIDTH*(BOARD_HEIGHT+1)
 #define NUMBER_OF_PLAYERS 2
+#define THRESHOLD_VALUE 10000
 
 
 //Function  signatures
@@ -258,7 +259,7 @@ void draw_board(int *board) {
       if(board[r*BOARD_WIDTH+c] == 0) {  // Draw blank spaces
         mvaddch(screen_row(r), screen_col(c), ' ');
       } else if(board[r*BOARD_WIDTH+c] > 0) {  // Draw worm
-        if(board[r*BOARD_WIDTH+c] % NUMBER_OF_PLAYERS == 0){
+        if(board[r*BOARD_WIDTH+c] > THRESHOLD_VALUE){
           mvaddch(screen_row(r), screen_col(c), '0');
         }
         else{
@@ -274,7 +275,7 @@ void draw_board(int *board) {
 
   
   // Draw the score
-  //mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length-INIT_WORM_LENGTH);
+  mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Player1: %03d Player2: %03d\r", board[BOARD_HEIGHT+1][0], board[BOARD_HEIGHT+1][1]);
   
   refresh();
 }
