@@ -1,6 +1,4 @@
-/*
-Program that runs the server for the game
-*/
+/*Program that runs the server for the game*/
 
 #include <stdio.h>
 #include <string.h>   //strlen
@@ -49,9 +47,9 @@ Program that runs the server for the game
 
 //Game variables
 //board
-int board[BOARD_HEIGHT+1][BOARD_WIDTH]; //creating an additional row so that other data
+int board[BOARD_HEIGHT+1][BOARD_WIDTH];
+//creating an additional row so that other data
 //can be sent (eg: player 1 score, player 2 score etc)
-int board_1d[ARRAY_LEN];
 
 int running = 1;
 
@@ -106,7 +104,7 @@ int main(int argc , char *argv[])
   int opt = TRUE;
   int master_socket , addrlen , new_socket;
   int activity, i , valread , sd;
-  int max_sd , l;
+  int max_sd ;
   int sd_last;
   int has_stdin = 0;
   int client_sock;
@@ -114,10 +112,6 @@ int main(int argc , char *argv[])
 
   struct sockaddr_in address;
       
-  char buffer[1025];  //data buffer of 1K
-
-  //a message
-  char *message = "WELCOME TO SERVER";
   
   //initialise all client_socket[] to 0 so not checked
   for (i = 0; i < max_clients; i++) 
@@ -212,8 +206,7 @@ int main(int argc , char *argv[])
           printf("Player connected , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
           connections++;
 
-          client_sock = new_socket;
-              
+                 
           //add new socket to array of sockets
           for (i = 0; i < max_clients; i++) 
             {
@@ -230,7 +223,7 @@ int main(int argc , char *argv[])
           
           //If we have right number of players, initialize game by initializing scheduler
            if (connections == NUMBER_OF_PLAYERS)
-             scheduler_init();             
+             scheduler_init();//start scheduler             
         }
 
     }//while
@@ -238,7 +231,7 @@ int main(int argc , char *argv[])
   //end ncurses
   endwin();
   return 0;
-} 
+} //main
 
 
 
@@ -330,7 +323,7 @@ void end_game(int loser) {
   send_board();
   timeout(-1);
   stop_scheduler();
-}
+}//end_game
 
 // Draw the actual game board. Board state is stored in a single 2D integer array.
 void draw_board() {
@@ -341,27 +334,24 @@ void draw_board() {
         mvaddch(screen_row(r), screen_col(c), ' ');
       } else if(board[r][c] > 0) {  // Draw worm
         if(board[r][c] < THRESHOLD_VALUE){
+          //icon for player 1
           mvaddch(screen_row(r), screen_col(c), '@');
         }
         else
-          mvaddch(screen_row(r), screen_col(c), 'O'); 
+          mvaddch(screen_row(r), screen_col(c), 'O'); //icon for player 2
       } else {  // Draw apple spinner thing
         char spinner_chars[] = {'|', '/', '-', '\\'};
         mvaddch(screen_row(r), screen_col(c), spinner_chars[abs(board[r][c] % 4)]);
       }
     }
   }
-  
+      
   // Draw the score
-  int i;
-  //mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-9), "Score %03d\r", worm_length0-INIT_WORM_LENGTH);
-    
-  // Draw the score
-   mvprintw(screen_row(-2), screen_col(0), "Player1:@ Player2:O\r");
+  mvprintw(screen_row(-2), screen_col(0), "Player1:@ Player2:O\r");
   mvprintw(screen_row(-2), screen_col(BOARD_WIDTH-14), "Player1: %03d Player2: %03d\r", board[BOARD_HEIGHT][0], board[BOARD_HEIGHT][1]);
 
   refresh();
-}
+}//draw_board
 
 
 
@@ -382,7 +372,7 @@ void update_worm_0() {
         worm_col = c;
       }
       
-      // Add 1 to the age of the worm segment
+      // Add 1 to the age of the worm segment. Threshold value used to identify worm.
       if(board[r][c] > 0 && THRESHOLD_VALUE > board[r][c]) {
         board[r][c]+=1;
         
@@ -438,7 +428,7 @@ void update_worm_0() {
   } else {
     update_job_interval(WORM_HORIZONTAL_INTERVAL);
   }
-}
+}//update_worm_0
 
 
 // Update the age of each segment of the worm and move the worm into its next position
@@ -515,7 +505,7 @@ void update_worm_1() {
   } else {
     update_job_interval(WORM_HORIZONTAL_INTERVAL);
   }
-}
+}//update_worm_1
 
 
 
@@ -552,7 +542,7 @@ void read_input(char key, int i) {
       return;
     }
   }
-}
+}//read_input
 
 
 
@@ -606,7 +596,6 @@ int scheduler_init() {
   memset(board, 0, BOARD_WIDTH*BOARD_HEIGHT*sizeof(int));
   
   // Put the worm at the middle of the board
-  int divisions = 2 * NUMBER_OF_PLAYERS;
 
   board[BOARD_HEIGHT/2][(BOARD_WIDTH) / (NUMBER_OF_PLAYERS + 1)] = 1;
   board[BOARD_HEIGHT/2][(BOARD_WIDTH * 2) / (NUMBER_OF_PLAYERS + 1)] = THRESHOLD_VALUE;
@@ -621,6 +610,7 @@ int scheduler_init() {
   
   // Create a job to update the worm every 200ms
   add_job(update_worm_0, 200);
+  
   // Create a job to update the other worm every 200ms
   add_job(update_worm_1, 200);
   
@@ -652,7 +642,7 @@ int scheduler_init() {
   running = 0;
 
   return 0;
-}
+}//scheduler
 
 
 // Function to check for keystrokes from client
@@ -660,7 +650,6 @@ void get_keystrokes(){
   int i;
   char buffer[1025];
   int sd;
-  int max_clients = 2;
   int valread;
   int max_sd = -1;
 
@@ -709,7 +698,7 @@ void get_keystrokes(){
           //Check if it was for closing
           if ((valread = read( sd , buffer, 1024)) == 0)
             {
-              perror("Client Aborted");
+              perror("Player Aborted");
             }
           
           //Get key that was pressed and pass to read_input
@@ -719,17 +708,18 @@ void get_keystrokes(){
             }
         }
     }
-}
+}//get_keystrokes
 
 
 //Sends an array representation of the board to the clients
 void send_board()
 {
-  for(int i=0;i<max_clients;i++){
+  int i;
+  for(i=0; i<max_clients;i++){
     board[BOARD_HEIGHT][2] = i;
     int result = send(client_socket[i], board, sizeof(int) * ARRAY_LEN, 0);
     if(result == -1)
       perror("send failed");
   }
-}
+}//send_board
 
