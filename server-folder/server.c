@@ -1,5 +1,5 @@
 /*
-Program that runs the server 
+Program that runs the server for the game
 */
 
 #include <stdio.h>
@@ -53,13 +53,9 @@ int board[BOARD_HEIGHT+1][BOARD_WIDTH]; //creating an additional row so that oth
 //can be sent (eg: player 1 score, player 2 score etc)
 int board_1d[ARRAY_LEN];
 
-// Worm parameters
-/* int worm_dir = DIR_NORTH; */
-/* int worm_length = INIT_WORM_LENGTH; */
+int running = 1;
 
-/* int worm2_dir = DIR_NORTH; */
-/* int worm2_length = INIT_WORM_LENGTH; */
-
+//Worm variables
 int worm_dir0 = DIR_NORTH;
 int worm_dir1 = DIR_NORTH;
 int worm_length0 = INIT_WORM_LENGTH;
@@ -167,7 +163,7 @@ int main(int argc , char *argv[])
   addrlen = sizeof(address);
   puts("Waiting for connections ...");
 
-  while(TRUE) 
+  while(running) 
     {
       //clear the socket set
       FD_ZERO(&readfds);
@@ -213,7 +209,7 @@ int main(int argc , char *argv[])
 
          
           //inform user of socket number - used in send and receive commands
-          printf("New connection , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
+          printf("Player connected , socket fd is %d , ip is : %s , port : %d \n" , new_socket , inet_ntoa(address.sin_addr) , ntohs(address.sin_port));
           connections++;
 
           client_sock = new_socket;
@@ -225,7 +221,7 @@ int main(int argc , char *argv[])
               if( client_socket[i] == 0 )
                 {
                   client_socket[i] = new_socket;
-                  printf("Adding to list of sockets as %d\n" , i);
+                  printf("Waiting for Player 2 to connect...\n");
                      
                   break;
                 }
@@ -653,6 +649,8 @@ int scheduler_init() {
   // Clean up window
   delwin(mainwin);
   endwin();
+  sleep(3);
+  running = 0;
 
   return 0;
 }

@@ -19,7 +19,7 @@
 #define NUMBER_OF_PLAYERS 2
 #define THRESHOLD_VALUE 10000
 
-
+int running = 1;
 //Function  signatures
 
 //Reads key pressed and returns it as char
@@ -85,7 +85,7 @@ int main(int argc , char *argv[])
   init_display();
 
         
-  while(1){
+  while(running){
   
     FD_ZERO(&readfds);
       
@@ -135,6 +135,8 @@ int main(int argc , char *argv[])
       draw_board(targetArray);
     }
   }//while loop
+  
+  endwin();
   return 0;
 }//main
 
@@ -300,8 +302,7 @@ void end_game(int loser) {
     
   refresh();
   sleep(3);
-  endwin();
+  running = 0;
   refresh();
-  exit(0);
 }//end_game
 
