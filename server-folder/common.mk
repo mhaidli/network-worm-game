@@ -3,7 +3,7 @@ CC  := gcc
 CXX := g++
 
 # Default flags
-CFLAGS   ?= -g -O2 --std=c99
+CFLAGS   ?= -g -O2 --std=gnu99
 CXXFLAGS ?= $(CFLAGS)
 LDFLAGS  += $(addprefix -l,$(LIBS))
 

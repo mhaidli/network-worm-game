@@ -221,6 +221,7 @@ int main(int argc , char *argv[])
               if( client_socket[i] == 0 )
                 {
                   client_socket[i] = new_socket;
+                  if (connections < NUMBER_OF_PLAYERS)
                   printf("Waiting for Player 2 to connect...\n");
                      
                   break;
@@ -233,8 +234,9 @@ int main(int argc , char *argv[])
         }
 
     }//while
-    
-  free(board); //freeing board
+  sleep(3);
+  //end ncurses
+  endwin();
   return 0;
 } 
 
@@ -327,7 +329,6 @@ void end_game(int loser) {
   refresh();
   send_board();
   timeout(-1);
-  getch();
   stop_scheduler();
 }
 
@@ -648,8 +649,6 @@ int scheduler_init() {
   
   // Clean up window
   delwin(mainwin);
-  endwin();
-  sleep(3);
   running = 0;
 
   return 0;
@@ -710,7 +709,7 @@ void get_keystrokes(){
           //Check if it was for closing
           if ((valread = read( sd , buffer, 1024)) == 0)
             {
-              ;//TODO: APPROPIATELY END GAME
+              perror("Client Aborted");
             }
           
           //Get key that was pressed and pass to read_input
