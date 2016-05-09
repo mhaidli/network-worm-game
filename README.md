@@ -40,6 +40,7 @@ http://www.cs.grinnell.edu/~curtsinger/teaching/2016S/CSC213/labs/real-time/
 Sockets:
 http://www.binarytides.com/multiple-socket-connections-fdset-select-linux/
 http://www.binarytides.com/socket-programming-c-linux-tutorial/
+http://stackoverflow.com/questions/674525/when-sending-an-array-of-int-over-tcp-why-are-only-the-first-amount-correct
 
 ncurses:
 http://www.tldp.org/HOWTO/html_single/NCURSES-Programming-HOWTO/
